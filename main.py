@@ -5,6 +5,7 @@ import time
 import logging
 import zoneinfo
 import smtplib
+import socket
 from datetime import datetime, timedelta
 import base64
 from email.mime.base import MIMEBase
@@ -14,6 +15,16 @@ from email.mime.text import MIMEText
 from email import encoders
 from pathlib import Path
 from typing import Optional
+
+# --- PARCHE PARA RAILWAY (Forzar IPv4) ---
+# Railway a veces intenta usar IPv6 para smtp.gmail.com y falla con "Network is unreachable".
+# Esto obliga a Python a usar solo IPv4.
+old_getaddrinfo = socket.getaddrinfo
+def new_getaddrinfo(*args, **kwargs):
+    responses = old_getaddrinfo(*args, **kwargs)
+    return [res for res in responses if res[0] == socket.AF_INET]
+socket.getaddrinfo = new_getaddrinfo
+# -----------------------------------------
 
 from fastapi import FastAPI, HTTPException, status, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
