@@ -209,14 +209,16 @@ def send_email_with_retry(
             if attempt < max_retries:
                 wait = 2 ** attempt
                 logger.warning(
-                    f"Intento SMTP {attempt}/{max_retries} falló: {e}. "
+                    f"Intento SMTP {attempt}/{max_retries} falló con {type(e).__name__}: {e}. "
                     f"Reintentando en {wait}s..."
                 )
+                logger.error("--- DETALLE DEL ERROR SMTP ---", exc_info=True)
                 time.sleep(wait)
             else:
                 logger.error(
                     f"Todos los intentos de envío SMTP fallaron "
-                    f"({max_retries}/{max_retries}): {e}"
+                    f"({max_retries}/{max_retries}): {e}",
+                    exc_info=True
                 )
     raise last_exception
 
