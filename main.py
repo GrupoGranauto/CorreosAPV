@@ -546,11 +546,31 @@ def handle_sheets_webhook(payload: WebhookPayload):
         raise
     except Exception as e:
         if not is_mock:
-            logger.error(f"Error SMTP: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Error de red SMTP al enviar el correo al APV: {str(e)}",
-            )
+            logger.error(f"Error SMTP: {e}", exc_info=True)
+            logger.info("Generando payload de fallback para envío vía Apps Script...")
+            try:
+                logo_base64 = base64.b64encode(logo_data).decode("utf-8") if logo_data else ""
+                ics_base64 = base64.b64encode(ics_data).decode("utf-8")
+                return {
+                    "success": True,
+                    "fallback_to_client": True,
+                    "message": f"SMTP falló ({str(e)}). Enviando vía GmailApp.",
+                    "email_payload": {
+                        "to": payload.email_apv,
+                        "subject": msg["Subject"],
+                        "body_text": description,
+                        "html_body": html_body,
+                        "ics_content_base64": ics_base64,
+                        "ics_filename": f"cita_{payload.nombre}_{payload.apellido}.ics".replace(" ", "_"),
+                        "logo_base64": logo_base64
+                    }
+                }
+            except Exception as encode_err:
+                logger.error(f"Error al codificar fallback: {encode_err}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Error de red SMTP ({str(e)}) y falló codificación de fallback ({str(encode_err)})",
+                )
         else:
             logger.warning(f"Error SMTP simulado (ignorado en modo test): {e}")
 
