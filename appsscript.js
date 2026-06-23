@@ -113,20 +113,16 @@ function doPost(e) {
 
     // Si se escribieron filas en Citados, marcar la casilla en Calendar
     if (written > 0) {
-      // Forzar recálculo para que ARRAYFORMULA llene la fila en Calendar
-      SpreadsheetApp.flush();
-      Utilities.sleep(1000);
-      SpreadsheetApp.flush();
-
       const sheetCalendar = ss.getSheetByName(SHEET_DESTINO_K);
       if (sheetCalendar) {
-        const lastRow = sheetCalendar.getLastRow();
-        if (lastRow >= 2) {
+        // La fila en Calendar corresponde exactamente a la fila agregada en Citados
+        var targetRow = sheetCitados.getLastRow();
+        if (targetRow >= 2) {
           // Marcar checkbox "Enviar" a true
-          sheetCalendar.getRange(lastRow, COL_K.CHECKBOX).setValue(true);
+          sheetCalendar.getRange(targetRow, COL_K.CHECKBOX).setValue(true);
           
           // Establecer estado a "Esperando..." con color amarillo
-          const celdaEstado = sheetCalendar.getRange(lastRow, COL_K.ESTADO);
+          const celdaEstado = sheetCalendar.getRange(targetRow, COL_K.ESTADO);
           celdaEstado.setValue(ESTADO_K.ESPERANDO);
           celdaEstado.setBackground(COLORES_K.ESPERANDO.bg);
           celdaEstado.setFontColor(COLORES_K.ESPERANDO.texto);
