@@ -4,7 +4,7 @@
  * =========================================================================
  * Reemplaza esta URL con la dirección de tu servicio en Railway una vez desplegado.
  */
-const RAILWAY_SERVICE_URL = "https://tu-servicio-railway.up.railway.app";
+const RAILWAY_SERVICE_URL = "https://web-production-d986f9.up.railway.app";
 const WEBHOOK_ENDPOINT = RAILWAY_SERVICE_URL + "/webhook";
 const API_SECRET_KEY = "sk_apv_Xk9mP3nQ7rT1bV5zA2";
 
