@@ -47,7 +47,7 @@ logger = logging.getLogger("apv_calendars")
 # ----------------------------------------------------
 class Settings(BaseSettings):
     smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 465
+    smtp_port: int = 465 # Forzado a 465. Ignorará la variable de Railway.
     smtp_user: str
     smtp_pass: str
     default_timezone: str = "America/Mexico_City"
@@ -57,6 +57,10 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.smtp_port = 465 # Forzar explícitamente a 465
 
 # Inicializar configuración
 try:
