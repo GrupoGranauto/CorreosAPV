@@ -194,6 +194,7 @@ def send_email_with_retry(
     last_exception = None
     for attempt in range(1, max_retries + 1):
         try:
+            logger.info(f"Iniciando conexión SMTP hacia {smtp_host}:{smtp_port}...")
             if smtp_port == 465:
                 with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30) as server:
                     server.login(smtp_user, smtp_pass)
