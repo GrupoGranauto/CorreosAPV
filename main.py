@@ -47,7 +47,7 @@ logger = logging.getLogger("apv_calendars")
 # ----------------------------------------------------
 class Settings(BaseSettings):
     smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
+    smtp_port: int = 465
     smtp_user: str
     smtp_pass: str
     default_timezone: str = "America/Mexico_City"
