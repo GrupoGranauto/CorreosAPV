@@ -98,7 +98,7 @@ function sendPendingInvites() {
 function processRow(sheet, rowNum) {
   var range = sheet.getRange(rowNum, 1, 1, 13);
   var values = range.getDisplayValues()[0];
-
+  
   var apv = values[0];          // A: APV
   var nombre = values[1];       // B: Nombre
   var apellido = values[2];     // C: Apellido
@@ -110,24 +110,24 @@ function processRow(sheet, rowNum) {
   var hora = values[9];         // J: Hora
   var emailApv = values[10];    // K: Email
   var estado = values[12];      // M: Estado 
-
+  
   // Evitar duplicados
   if (estado.toString().toUpperCase().indexOf("ENVIADO") > -1) return null;
-
+  
   // Validación menos estricta
   if (!emailApv || !dia || !hora) {
     sheet.getRange(rowNum, COL_ESTADO).setValue("ERROR: Faltan datos (Fecha/Hora/Email)");
     sheet.getRange(rowNum, COL_CHECKBOX).setValue(false); // Desmarcar casilla
     return false;
   }
-
+  
   var timezone = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
   var payload = {
     "apv": apv || "N/A", "nombre": nombre || "N/A", "apellido": apellido || "N/A", "contacto_cliente": contacto,
     "unidad_de_interes": unidad, "agencia_de_cita": agencia, "bdc_responsable": bdc,
     "dia_de_cita": dia, "hora_de_cita": hora, "email_apv": emailApv, "timezone": timezone
   };
-
+  
   var options = {
     "method": "post",
     "contentType": "application/json",
@@ -135,11 +135,11 @@ function processRow(sheet, rowNum) {
     "payload": JSON.stringify(payload),
     "muteHttpExceptions": true
   };
-
+  
   try {
     var response = UrlFetchApp.fetch(WEBHOOK_ENDPOINT, options);
     var code = response.getResponseCode();
-
+    
     if (code === 200 || code === 201) {
       var now = Utilities.formatDate(new Date(), timezone, "dd/MM/yyyy HH:mm:ss");
       sheet.getRange(rowNum, COL_ESTADO).setValue("ENVIADO - " + now);
