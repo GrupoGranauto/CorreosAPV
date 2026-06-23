@@ -188,7 +188,7 @@ def send_email_with_retry(
     smtp_pass: str,
     recipient: str,
     msg,
-    max_retries: int = 3,
+    max_retries: int = 2,
 ):
     """Envía un correo electrónico con reintentos y backoff exponencial."""
     last_exception = None
@@ -196,11 +196,11 @@ def send_email_with_retry(
         try:
             logger.info(f"Iniciando conexión SMTP hacia {smtp_host}:{smtp_port}...")
             if smtp_port == 465:
-                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30) as server:
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=5) as server:
                     server.login(smtp_user, smtp_pass)
                     server.sendmail(smtp_user, [recipient], msg.as_string())
             else:
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=5) as server:
                     server.starttls()
                     server.login(smtp_user, smtp_pass)
                     server.sendmail(smtp_user, [recipient], msg.as_string())
