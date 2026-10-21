@@ -26,3 +26,11 @@ env/
 # OS
 Thumbs.db
 .DS_Store
+
+# Credenciales OAuth / cuentas de servicio
+client_secret*.json
+gmail_token.json
+credenciales*.json
+
+# Logs locales
+*.log

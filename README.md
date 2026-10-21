@@ -1,104 +1,70 @@
 # 📅 Servicio de Invitaciones de Calendario APV
 
-Este servicio automatiza el envío de invitaciones de Gmail (eventos de Google Calendar) a los Asesores Profesionales de Ventas (APV) cuando se registra una nueva cita en la pestaña **"Calendar"** de Google Sheets.
+Envía una invitación de calendario (correo HTML + `.ics` con botones Sí/No/Quizás) al Asesor Profesional de Ventas (APV) cada vez que se agenda una cita en Kommo.
 
-El sistema consta de dos partes:
-1. **Backend en Railway (Python/FastAPI):** Recibe los datos de la cita, crea una invitación interactiva estándar de iCalendar (`.ics`) y envía un correo estructurado por SMTP con la invitación adjunta e incrustada.
-2. **Script de Google Sheets (Google Apps Script):** Detecta cuándo se completa una fila en Google Sheets, envía los datos al backend y marca la fila como `ENVIADO` para evitar duplicados.
+## Cómo funciona
 
----
+```
+Kommo (cita agendada)
+   │  webhook
+   ▼
+Apps Script (appsscript.js) ──► hoja "Citados" (fila nueva)
+                            └─► hoja "Calendar": casilla L = ✔, estado M = "Esperando..."
+                                   ▲  ARRAYFORMULA sobre Citados (APV, correo, fecha, etc.)
+                                   │
+Railway: worker.py (cada 15 s) ────┘  lee filas con L = ✔ y M ≠ "Enviado"
+   └─► Gmail API ──► correo al APV ──► M = "Enviado ✓ — fecha"
+```
 
-## 🛠️ Paso 1: Configurar tu Cuenta de Gmail (SMTP)
+- **Remitente:** la cuenta autorizada por OAuth (hoy `bdccenter@grupogranauto.mx`).
+- **Zona horaria:** el worker interpreta fecha/hora con la zona de la hoja (Archivo › Configuración; hoy `America/Hermosillo`).
+- **Citas pasadas:** no se envían; se marcan `Omitido — la cita ya pasó` y se desmarca la casilla.
+- **Errores:** se escriben en M como `ERROR: ...` y se desmarca la casilla. Para reintentar, corrige el dato y vuelve a marcar la casilla.
+- **Por qué Gmail API y no SMTP:** Railway bloquea los puertos SMTP en planes sin costo; la Gmail API usa HTTPS.
 
-Para que el servidor pueda enviar correos en tu nombre de manera segura, debes usar una **Contraseña de Aplicación** de Google (no tu contraseña normal).
+## Archivos
 
-1. Ve a la configuración de tu cuenta de Google: [Mi Cuenta de Google](https://myaccount.google.com/).
-2. En el menú de la izquierda, selecciona **Seguridad**.
-3. Asegúrate de tener activada la **Verificación en dos pasos**. Si no, actívala.
-4. Busca la sección **Contraseñas de aplicaciones** (puedes buscarlo directamente en la barra de búsqueda superior).
-5. Escribe un nombre para identificar la aplicación (ejemplo: `Servicio Citas Railway`).
-6. Haz clic en **Crear**.
-7. Google te mostrará un código de **16 caracteres** dentro de un recuadro amarillo. **Copia esta contraseña** (sin los espacios). La usaremos como tu contraseña SMTP en las variables de entorno.
+| Archivo | Qué hace |
+|---|---|
+| `main.py` | FastAPI: arranca el worker en segundo plano, expone `/`, `/health` y `POST /webhook` (envío directo con `X-API-Key`). |
+| `worker.py` | Lee la hoja "Calendar" y procesa las filas pendientes. También corre solo: `python worker.py`. |
+| `mailer.py` | Arma el correo (texto, HTML con logo, `.ics`) y lo envía por Gmail API. |
+| `configurar_railway.py` | Autoriza la cuenta remitente, manda prueba y sube credenciales a Railway sin imprimirlas. |
+| `appsscript.js` | Receptor del webhook de Kommo (pegar en Extensiones › Apps Script de la hoja). |
+| `test_webhook.py` | Prueba manual de `POST /webhook`. |
 
----
+## Despliegue (Railway)
 
-## 🚀 Paso 2: Despliegue del Servicio en Railway
+- Proyecto **APV Calendars**, servicio `apv-calendars`, conectado a `GrupoGranauto/CorreosAPV` rama `main` (cada push redeploya).
+- URL: `https://apv-calendars-production.up.railway.app` — `/health` muestra el estado del worker.
 
-El proyecto está preparado para que Railway lo detecte y despliegue automáticamente sin necesidad de Dockerfile (Railway detecta Python mediante el archivo `requirements.txt`).
+### Variables
 
-1. Sube este repositorio a tu cuenta de **GitHub**.
-2. Entra a [Railway.app](https://railway.app/) e inicia sesión.
-3. Haz clic en **New Project** y selecciona **Deploy from GitHub repo**.
-4. Elige el repositorio donde subiste este código.
-5. Antes de desplegar, ve a la pestaña **Variables** del servicio en Railway y añade las siguientes variables de entorno:
+| Variable | Descripción |
+|---|---|
+| `GMAIL_SENDER` | Correo remitente (el que autorizó OAuth). |
+| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` | Cliente OAuth "App de escritorio" (Google Cloud › proyecto `gasme-bi` › Google Auth Platform › Clientes › *APV Calendars Railway*). |
+| `GMAIL_REFRESH_TOKEN` | Token de la cuenta remitente (scope `gmail.send`). |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON de la cuenta de servicio con edición en la hoja (`autoinsights@base-maestra-gn...`). |
+| `API_SECRET_KEY` | Clave para `POST /webhook`. |
+| `SPREADSHEET_ID`, `SHEET_NAME`, `WORKER_INTERVAL_SECONDS`, `WORKER_ENABLED`, `DEFAULT_TIMEZONE` | Opcionales (ver `.env.example`). |
 
-| Variable | Valor | Descripción |
-| :--- | :--- | :--- |
-| `SMTP_USER` | `tu_correo@gmail.com` | Tu dirección de correo de Gmail remitente. |
-| `SMTP_PASS` | `xxxx xxxx xxxx xxxx` | La contraseña de aplicación de 16 caracteres que creaste en el Paso 1. |
-| `SMTP_HOST` | `smtp.gmail.com` | Host de Gmail SMTP (por defecto). |
-| `SMTP_PORT` | `587` | Puerto SMTP TLS (por defecto). |
-| `DEFAULT_TIMEZONE` | `America/Mexico_City` | Zona horaria para la interpretación de las fechas (ej. `America/Mexico_City`). |
+### Reautorizar o cambiar remitente
 
-6. Una vez configuradas las variables, Railway compilará y desplegará la aplicación.
-7. Ve a la pestaña **Settings** en Railway y haz clic en **Generate Domain** en la sección *Networking*.
-8. Copia la URL pública generada (ej. `https://apv-calendars-production.up.railway.app`). La usaremos en Google Sheets.
+```bash
+python configurar_railway.py todo --client ruta/al/client_secret.json --cuenta remitente@grupogranauto.mx
+```
 
----
+Abre el consentimiento de Google, guarda el token en `~/.apv_calendars/`, sube todo a Railway y redeploya.
 
-## 📊 Paso 3: Configurar Google Sheets (Google Apps Script)
+## Estructura de "Calendar"
 
-### 1. Copiar el Script
-1. Abre tu hoja de Google Sheets: [Google Sheets](https://docs.google.com/spreadsheets/d/1o_gr48pIWG5hrVf51Q5R8RPTa4eJL6f6a0Whk-2LGN0/edit#gid=465778881).
-2. En el menú superior, ve a **Extensiones** > **Apps Script**.
-3. Borra el código existente en el archivo `Código.gs` (o crea uno nuevo) y pega todo el contenido del archivo [appsscript.js](file:///c:/Users/famil/OneDrive/Escritorio/APV_Calendars/appsscript.js).
-4. En la línea 8 del código que pegaste, reemplaza el valor de `RAILWAY_SERVICE_URL` por la URL pública generada por Railway en el Paso 2:
-   ```javascript
-   const RAILWAY_SERVICE_URL = "https://tu-servicio-railway.up.railway.app";
-   ```
-5. Guarda el proyecto haciendo clic en el icono del disco (Guardar proyecto).
+A `APV` · B `Nombre` · C `Apellido` · D `Contacto cliente` · E `Unidad de interés` · F `Agencia de cita` · G `Agencia Sekoop` (no se usa) · H `BDC Responsable` · I `Día de cita` · J `Hora de Cita` · K `Email APV` · L `Enviar` (casilla) · M `Estado Envío`
 
-### 2. Configurar el Disparador Instalable (Trigger)
-Los disparadores simples integrados (como escribir `onEdit` tal cual) no tienen permisos para enviar datos fuera de Google. Por lo tanto, debemos configurar un disparador instalable:
+A–K vienen del ARRAYFORMULA en `Calendar!A2` (el correo del APV sale de `Datos APV`, columna `CORREO`, buscando por `APV_KOMMO`). L y M las escriben Apps Script y el worker.
 
-1. En el panel izquierdo de Apps Script, haz clic en el icono de reloj (**Activadores**).
-2. Haz clic en el botón inferior derecho **+ Añadir activador**.
-3. Configura el formulario de la siguiente manera:
-   - **Selecciona qué función ejecutar:** `onCalendarEdit`
-   - **Selecciona qué despliegue debe ejecutarse:** `Principal`
-   - **Selecciona la fuente del evento:** `De la hoja de cálculo`
-   - **Selecciona el tipo de evento:** `Al editar`
-4. Haz clic en **Guardar**.
-5. Google te pedirá otorgar permisos de red y de acceso al documento. Haz clic en tu cuenta, luego en **Configuración Avanzada** > **Ir a Proyecto sin título (no seguro)** y confirma los permisos.
+## Apps Script (Kommo → Sheets)
 
----
-
-## 📋 Estructura de Columnas Requerida en "Calendar"
-
-Asegúrate de que la hoja llamada exactamente **`Calendar`** tenga estas columnas en las primeras 12 columnas (de la **A** a la **L**):
-
-* **A**: `APV` (Nombre del Asesor)
-* **B**: `Nombre` (Nombre del Cliente)
-* **C**: `Apellido` (Apellido del Cliente)
-* **D**: `Contacto cliente` (Teléfono del Cliente)
-* **E**: `Unidad de interés` (Auto)
-* **F**: `Agencia de cita` (Ubicación física)
-* **G**: `Agencia Sekoop` *(Esta columna se ignora al enviar la invitación)*
-* **H**: `BDC Responsable` (Agente del BDC)
-* **I**: `Día de cita` (Fecha en formato YYYY-MM-DD o DD/MM/YYYY)
-* **J**: `Hora de Cita` (Hora en formato HH:MM)
-* **K**: `Email APV` (Correo del asesor que recibirá la cita)
-* **L**: `Invitación Estado` *(Esta columna la llena el script automáticamente como `ENVIADO - Fecha/Hora` tras enviar con éxito la invitación)*
-
----
-
-## ⚡ Modo de Uso
-
-### Envío Automático
-Cuando rellenes una nueva fila en Google Sheets, en cuanto escribas la fecha, la hora y el correo en la columna K (`Email APV`), el disparador se activará automáticamente, enviará los datos a Railway, el backend enviará el correo con la invitación y escribirá `ENVIADO` en la columna L.
-
-### Envío Manual / Masivo
-Si por algún motivo la fila no se envió automáticamente (ej. copiaste y pegaste múltiples filas a la vez):
-1. Recarga tu hoja de Sheets. Verás un nuevo menú en la parte superior derecha llamado `📅 Citas BDC`.
-2. Haz clic en `📅 Citas BDC` > **Enviar Invitaciones Pendientes**.
-3. El script escaneará toda la hoja y procesará todas las filas que tengan datos completos pero cuya columna L esté vacía. Al finalizar, te mostrará un mensaje confirmando cuántas invitaciones se enviaron.
+1. En la hoja: **Extensiones › Apps Script**, pega `appsscript.js`.
+2. **Implementar › Administrar implementaciones › Editar › Nueva versión** (así la URL del webhook en Kommo no cambia).
+3. El webhook de Kommo debe apuntar a la URL de la implementación con `?token=<SECRET_TOKEN_K>`.

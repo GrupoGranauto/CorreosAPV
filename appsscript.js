@@ -9,11 +9,10 @@
  *   3. Activa la casilla de verificación ("Enviar") de la nueva fila en la hoja
  *      "Calendar" (poblada mediante ARRAYFORMULA desde Citados) y establece el
  *      estado en "Esperando...".
- *   4. El script de Python local (sheet_worker.py) se encarga de detectar
- *      esta casilla marcada, enviar el correo y actualizar el estado a "Enviado".
+ *   4. El worker en Railway (worker.py) detecta esta casilla marcada, envía
+ *      la invitación por Gmail API y actualiza el estado a "Enviado".
  *
- * NOTA: Se eliminó toda la comunicación y dependencias hacia Railway,
- * simplificando al máximo el código y eliminando cualquier conflicto de nombres.
+ * NOTA: Este script no llama a Railway; el worker lee la hoja por su cuenta.
  * =========================================================================
  */
 
@@ -91,6 +90,7 @@ function doPost(e) {
 
     let written = 0;
     let skipped = 0;
+    const filasNuevas = [];
 
     leads.forEach(function (lead) {
       const checked = _isCheckboxChecked_K(lead, CITA_FIELD_ID_K);
@@ -107,16 +107,16 @@ function doPost(e) {
 
       sheetCitados.appendRow(_buildRow_K(lead));
       SpreadsheetApp.flush();
+      filasNuevas.push(sheetCitados.getLastRow());
       props.setProperty(propKey, '1');
       written++;
     });
 
-    // Si se escribieron filas en Citados, marcar la casilla en Calendar
-    if (written > 0) {
-      const sheetCalendar = ss.getSheetByName(SHEET_DESTINO_K);
-      if (sheetCalendar) {
+    // Marcar la casilla en Calendar por cada fila agregada a Citados
+    const sheetCalendar = ss.getSheetByName(SHEET_DESTINO_K);
+    if (sheetCalendar) {
+      filasNuevas.forEach(function (targetRow) {
         // La fila en Calendar corresponde exactamente a la fila agregada en Citados
-        var targetRow = sheetCitados.getLastRow();
         if (targetRow >= 2) {
           // Marcar checkbox "Enviar" a true
           sheetCalendar.getRange(targetRow, COL_K.CHECKBOX).setValue(true);
@@ -127,10 +127,9 @@ function doPost(e) {
           celdaEstado.setBackground(COLORES_K.ESPERANDO.bg);
           celdaEstado.setFontColor(COLORES_K.ESPERANDO.texto);
           celdaEstado.setFontWeight('bold');
-          
-          SpreadsheetApp.flush();
         }
-      }
+      });
+      SpreadsheetApp.flush();
     }
 
     return _json_K({

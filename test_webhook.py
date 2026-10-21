@@ -4,14 +4,19 @@ Ejecuta primero el servidor con: python main.py
 Luego en otra terminal: python test_webhook.py
 """
 import json
+import os
 import sys
 import time
 import urllib.request
 import urllib.error
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # ── Configuración ──────────────────────────────────────
-SERVER_URL = "http://127.0.0.1:8000"
-API_KEY = "sk_apv_Xk9mP3nQ7rT1bV5zA2"
+SERVER_URL = os.getenv("SERVER_URL", "http://127.0.0.1:8000")
+API_KEY = os.getenv("API_SECRET_KEY", "")
 
 
 def test_webhook(email_destino: str = "mborbon@grupogranauto.mx"):
