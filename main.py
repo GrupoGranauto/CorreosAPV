@@ -136,7 +136,8 @@ def health_check():
     return {
         "status": "healthy" if healthy else "degraded",
         "gmail_configured": gmail_sender is not None,
-        "sender": gmail_sender.sender if gmail_sender else None,
+        "sender": gmail_sender.from_address if gmail_sender else None,
+        "gmail_account": gmail_sender.sender if gmail_sender else None,
         "worker": worker.status,
     }
 
@@ -157,7 +158,7 @@ def handle_sheets_webhook(payload: WebhookPayload):
     )
 
     is_mock = gmail_sender is None or os.getenv("TEST_MODE", "").lower() == "true"
-    sender_email = gmail_sender.sender if gmail_sender else "mock@example.com"
+    sender_email = gmail_sender.from_address if gmail_sender else "mock@example.com"
     tz_str = payload.timezone or DEFAULT_TIMEZONE
 
     try:

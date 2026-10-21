@@ -42,7 +42,8 @@ Railway: worker.py (cada 15 s) ────┘  lee filas con L = ✔ y M ≠ "E
 
 | Variable | Descripción |
 |---|---|
-| `GMAIL_SENDER` | Correo remitente (el que autorizó OAuth). |
+| `GMAIL_SENDER` | Cuenta que autorizó OAuth (dueña del refresh token). |
+| `GMAIL_FROM` | Remitente visible (opcional). Si es distinto de `GMAIL_SENDER`, debe estar verificado como "Enviar como" en esa cuenta. |
 | `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` | Cliente OAuth "App de escritorio" (Google Cloud › proyecto `gasme-bi` › Google Auth Platform › Clientes › *APV Calendars Railway*). |
 | `GMAIL_REFRESH_TOKEN` | Token de la cuenta remitente (scope `gmail.send`). |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON de la cuenta de servicio con edición en la hoja (`autoinsights@base-maestra-gn...`). |

@@ -265,13 +265,21 @@ def build_invite(cita: dict, sender: str, tz_str: str):
 # ENVÍO POR GMAIL API
 # ----------------------------------------------------
 class GmailSender:
-    """Envía mensajes MIME con la Gmail API usando un refresh token OAuth."""
+    """
+    Envía mensajes MIME con la Gmail API usando un refresh token OAuth.
 
-    def __init__(self, sender: str, client_id: str, client_secret: str, refresh_token: str):
+    `sender` es la cuenta autorizada. `from_address` es el remitente visible;
+    si es distinto, debe estar dado de alta como "Enviar como" en esa cuenta
+    (Gmail lo reescribe a `sender` si no está verificado).
+    """
+
+    def __init__(self, sender: str, client_id: str, client_secret: str, refresh_token: str,
+                 from_address: str = ""):
         from google.auth.transport.requests import AuthorizedSession
         from google.oauth2.credentials import Credentials
 
         self.sender = sender
+        self.from_address = from_address or sender
         creds = Credentials(
             token=None,
             refresh_token=refresh_token,
@@ -291,7 +299,7 @@ class GmailSender:
         refresh_token = os.getenv("GMAIL_REFRESH_TOKEN", "").strip()
         if not all([sender, client_id, client_secret, refresh_token]):
             return None
-        return cls(sender, client_id, client_secret, refresh_token)
+        return cls(sender, client_id, client_secret, refresh_token, os.getenv("GMAIL_FROM", "").strip())
 
     def send(self, msg, max_retries: int = 3) -> str:
         """Envía el mensaje. Regresa el id del mensaje de Gmail."""

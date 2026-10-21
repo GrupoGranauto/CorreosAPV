@@ -93,7 +93,7 @@ def cmd_prueba(args):
     from mailer import GmailSender, build_invite
 
     tok = _load_token()
-    sender = GmailSender(tok["sender"], tok["client_id"], tok["client_secret"], tok["refresh_token"])
+    sender = GmailSender(tok["sender"], tok["client_id"], tok["client_secret"], tok["refresh_token"], args.desde)
     cita = {
         "apv": "Prueba Sistema BDC",
         "nombre": "Cliente",
@@ -106,9 +106,9 @@ def cmd_prueba(args):
         "hora_de_cita": args.hora,
         "email_apv": args.para,
     }
-    msg, _, _ = build_invite(cita, tok["sender"], "America/Mexico_City")
+    msg, _, _ = build_invite(cita, sender.from_address, "America/Hermosillo")
     msg_id = sender.send(msg)
-    print(f"Prueba enviada a {args.para} desde {tok['sender']} (gmail id {msg_id})")
+    print(f"Prueba enviada a {args.para} desde {sender.from_address} (cuenta {tok['sender']}, gmail id {msg_id})")
 
 
 def _railway_cmd():
@@ -162,10 +162,13 @@ def cmd_railway(args):
     _railway_set("GMAIL_REFRESH_TOKEN", tok["refresh_token"])
     _railway_set("GOOGLE_SERVICE_ACCOUNT_JSON", sa_json)
     _railway_set("API_SECRET_KEY", api_key)
+    if args.desde:
+        _railway_set("GMAIL_FROM", args.desde)
     _railway_set("GMAIL_SENDER", tok["sender"], skip_deploys=False)  # este dispara el redeploy
 
     _update_local_env({
         "GMAIL_SENDER": tok["sender"],
+        "GMAIL_FROM": args.desde or tok["sender"],
         "GMAIL_CLIENT_ID": tok["client_id"],
         "GMAIL_CLIENT_SECRET": tok["client_secret"],
         "GMAIL_REFRESH_TOKEN": tok["refresh_token"],
@@ -186,6 +189,7 @@ def main():
     parser.add_argument("--port", type=int, default=8765, help="Puerto local para el regreso de OAuth")
     parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador; solo imprimir la URL")
     parser.add_argument("--para", default="", help="Destinatario de la invitación de prueba")
+    parser.add_argument("--desde", default="", help='Remitente visible ("Enviar como" verificado), p. ej. notificaciones@autoinsights.mx')
     parser.add_argument("--dia", default="2030-01-01", help="Día de la cita de prueba (YYYY-MM-DD)")
     parser.add_argument("--hora", default="10:00", help="Hora de la cita de prueba (HH:MM)")
     parser.add_argument("--service-account", default=DEFAULT_SERVICE_ACCOUNT, help="JSON de la cuenta de servicio de Sheets")

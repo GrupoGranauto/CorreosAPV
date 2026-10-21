@@ -125,7 +125,7 @@ def process_row(ws, row_idx: int, row: list, sender: GmailSender) -> str:
         if not EMAIL_REGEX.match(cita["email_apv"]):
             raise ValueError(f"El email del APV '{cita['email_apv']}' no tiene un formato válido.")
 
-        msg, local_dt, _ = build_invite(cita, sender.sender, sheet_timezone)
+        msg, local_dt, _ = build_invite(cita, sender.from_address, sheet_timezone)
 
         # No mandar invitaciones de citas que ya pasaron
         if local_dt < _now_local():
@@ -181,7 +181,10 @@ def run_forever(stop_event: threading.Event = None):
     sender = GmailSender.from_env()
     ws = None
     status["running"] = True
-    logger.info(f"Worker iniciado — hoja '{SHEET_NAME}', cada {INTERVAL_SECONDS}s, remitente {sender.sender}")
+    logger.info(
+        f"Worker iniciado — hoja '{SHEET_NAME}', cada {INTERVAL_SECONDS}s, "
+        f"remitente {sender.from_address} (cuenta {sender.sender})"
+    )
 
     while not stop_event.is_set():
         try:
