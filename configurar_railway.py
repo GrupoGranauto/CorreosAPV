@@ -171,6 +171,8 @@ def cmd_railway(args):
         "GMAIL_REFRESH_TOKEN": tok["refresh_token"],
         "GOOGLE_SERVICE_ACCOUNT_FILE": str(sa_path),
         "API_SECRET_KEY": api_key,
+        # El worker de producción corre en Railway; en local solo se prueba /webhook
+        "WORKER_ENABLED": "false",
     })
     print("Variables listas. Railway está redeployando el servicio.")
     print(f"API_SECRET_KEY nueva guardada también en {ENV_FILE.name} (no se imprime).")
